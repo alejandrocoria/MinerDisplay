@@ -7,6 +7,7 @@
 #include <SFML/Graphics/View.hpp>
 #include <SFML/System/Time.hpp>
 #include <SFML/Window/Event.hpp>
+#include <chrono>
 #include <cmath>
 
 namespace {
@@ -19,10 +20,11 @@ const std::array<sf::Color, 12> colors {{
 
 
 SceneDisplays::SceneDisplays(SceneManager* sceneManager):
-Scene(sceneManager),
-profitability(&sceneManager->getFont()),
-balance(&sceneManager->getFont()),
-value(&sceneManager->getFont()) {
+        Scene(sceneManager),
+        profitability(&sceneManager->getFont()),
+        balance(&sceneManager->getFont()),
+        value(&sceneManager->getFont()),
+        algoChart(&sceneManager->getFont()) {
     profitability.setFactor(1.f);
     profitability.setHeader(L"Rentabilidad / día");
     profitability.setHeaderColor({200, 200, 200, 185}, sf::Color::Black);
@@ -30,6 +32,8 @@ value(&sceneManager->getFont()) {
     balance.setHeaderColor({200, 200, 200, 255}, sf::Color::Black);
     value.setHeader("Value");
     value.setHeaderColor({200, 200, 200, 185}, sf::Color::Black);
+
+    updateSizes();
 }
 
 void SceneDisplays::processEvents(sf::Event& event) {
@@ -100,6 +104,15 @@ void SceneDisplays::update(sf::Time time) {
 
         value.setValues(1, sceneManager->BTCtoARS(1), sceneManager->BTCtoUSD(1));
 
+        algoChart.clearPoints();
+        for (const auto& point : sceneManager->getAlgoData().dataPoints) {
+            algoChart.addPoint({point.time, sceneManager->BTCtoARS(point.profitability)});
+        }
+
+        using namespace std::chrono;
+        unsigned long long currentTime = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+        algoChart.setXRange(currentTime - 86400000, currentTime);
+
         updateSizes();
     }
 }
@@ -112,6 +125,8 @@ void SceneDisplays::draw(sf::RenderTarget& target, sf::RenderStates states) {
     for (const auto& rig : rigs) {
         target.draw(rig, states);
     }
+
+    target.draw(algoChart, states);
 }
 
 void SceneDisplays::lostFocus() {
@@ -141,9 +156,14 @@ void SceneDisplays::updateSizes() {
 
     profitability.setWidth(headerWidth);
 
-    balance.setPosition({headerWidth, 0});
+    balance.setPosition(sf::Vector2f(headerWidth, 0));
     balance.setWidth(headerWidth);
 
-    value.setPosition({headerWidth * 2, 0});
+    value.setPosition(sf::Vector2f(headerWidth * 2, 0));
     value.setWidth(headerWidth);
+
+    int chartHeight = (view.getSize().y - 200) / 2;
+    algoChart.setPosition({0.f, 100.f});
+    algoChart.setWidth(view.getSize().x / 2);
+    algoChart.setHeight(chartHeight);
 }

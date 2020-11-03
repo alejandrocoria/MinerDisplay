@@ -37,6 +37,7 @@ public:
     double getBTCBalance() const;
     double BTCtoUSD(double btc) const;
     double BTCtoARS(double btc) const;
+    const AlgoData& getAlgoData() const;
 
 private:
     struct PopBack {};
@@ -87,8 +88,8 @@ private:
     std::shared_mutex restClientMutex;
     bool rigsDirty = false;
     bool rigsDirtyThisFrame = false;
-    double ARSBTC;
-    double USDBTC;
+    double ARSBTC = 0.0;
+    double USDBTC = 0.0;
     BalanceJSON balanceJSON;
     RigsJSON rigsJSON;
     std::vector<DeviceJSON> devicesJSON;

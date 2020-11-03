@@ -36,9 +36,11 @@ find_package(Boost REQUIRED COMPONENTS
 include_directories(${Boost_INCLUDE_DIR})
 
 
-add_executable(${PROJECT_NAME} Button.cpp DeviceDisplay.cpp main.cpp MoneyDisplay.cpp RigDisplay.cpp
-        SceneDisplays.cpp SceneManager.cpp SceneMenu.cpp SceneSettings.cpp Settings.cpp TextBox.cpp)
+add_executable(${PROJECT_NAME} Button.cpp ChartDisplay.cpp DeviceDisplay.cpp main.cpp MoneyDisplay.cpp
+        RigDisplay.cpp SceneDisplays.cpp SceneManager.cpp SceneMenu.cpp SceneSettings.cpp Settings.cpp
+        TextBox.cpp)
 
+target_link_options(${PROJECT_NAME} PRIVATE -mwindows)
 
 target_link_libraries(${PROJECT_NAME}
         sfml-graphics

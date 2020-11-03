@@ -7,7 +7,7 @@
 #include <fstream>
 
 void Settings::loadFromFile() {
-    std::ifstream ifs("./settings.json");
+    std::ifstream ifs("../user/settings.json");
     if (!ifs.is_open()) {
         saveToFile();
         return;
@@ -33,7 +33,7 @@ void Settings::loadFromFile() {
 }
 
 void Settings::saveToFile() {
-    std::ofstream ofs("./settings.json");
+    std::ofstream ofs("../user/settings.json");
     rapidjson::OStreamWrapper osw(ofs);
 
     rapidjson::PrettyWriter<rapidjson::OStreamWrapper> writer(osw);

@@ -1,8 +1,9 @@
 #pragma once
 
-#include "Scene.h"
+#include "ChartDisplay.h"
 #include "RigDisplay.h"
 #include "MoneyDisplay.h"
+#include "Scene.h"
 #include <SFML/Graphics/Text.hpp>
 
 class SceneDisplays : public Scene {
@@ -24,5 +25,6 @@ private:
     MoneyDisplay balance;
     MoneyDisplay value;
     std::vector<RigDisplay> rigs;
+    ChartDisplay algoChart;
     unsigned int deviceCount = 0;
 };

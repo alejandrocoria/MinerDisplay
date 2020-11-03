@@ -24,6 +24,8 @@ namespace {
     constexpr std::array<char, 16> hexDigits = {'0', '1', '2', '3', '4', '5', '6', '7',
                                                 '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
 
+    constexpr float requestTimeWait = 300.f;
+
     std::string apiDomain = "https://api2.nicehash.com";
 
     std::string rigsPath = "/main/api/v2/mining/rigs2/";
@@ -117,11 +119,16 @@ const sf::View& SceneManager::getView() const {
 
 void SceneManager::run(std::unique_ptr<Scene> startScene) {
     scenes.emplace_back(std::move(startScene));
+
+    if (settings.organizationID.empty() || settings.apiKey.empty() || settings.apiSecretKey.empty()) {
+        scenes.emplace_back(std::make_unique<SceneSettings>(this));
+    }
+
     activeFrom = scenes.begin();
 
     sf::Clock clock;
     sf::Time timeElapsed;
-    requestTime = sf::seconds(300.f);
+    requestTime = sf::seconds(requestTimeWait);
     sf::Event event;
 
     while(open) {
@@ -180,16 +187,21 @@ void SceneManager::run(std::unique_ptr<Scene> startScene) {
             rigsDirtyThisFrame = false;
         }
 
-        requestTime += timeElapsed;
-        if (requestTime.asSeconds() > 300.f) {
-            requestTime = sf::Time::Zero;
-            restClient = restc_cpp::RestClient::Create();
-            rigPromise = restClient->ProcessWithPromise([this](restc_cpp::Context& ctx) {getRigData(ctx);});
-            exchangeARSPromise = restClient->ProcessWithPromise([this](restc_cpp::Context& ctx) {getExchangeARSData(ctx);});
-            exchangeUSDPromise = restClient->ProcessWithPromise([this](restc_cpp::Context& ctx) {getExchangeUSDData(ctx);});
-            balancePromise = restClient->ProcessWithPromise([this](restc_cpp::Context& ctx) {getBalanceData(ctx);});
-            algoPromise = restClient->ProcessWithPromise([this](restc_cpp::Context& ctx) {getAlgoData(ctx);});
-            restClient->CloseWhenReady(false);
+        if (!settings.organizationID.empty() && !settings.apiKey.empty() && !settings.apiSecretKey.empty()) {
+            requestTime += timeElapsed;
+            if (requestTime.asSeconds() > requestTimeWait) {
+                requestTime = sf::Time::Zero;
+                restClient = restc_cpp::RestClient::Create();
+                rigPromise = restClient->ProcessWithPromise([this](restc_cpp::Context &ctx) { getRigData(ctx); });
+                exchangeARSPromise = restClient->ProcessWithPromise(
+                        [this](restc_cpp::Context &ctx) { getExchangeARSData(ctx); });
+                exchangeUSDPromise = restClient->ProcessWithPromise(
+                        [this](restc_cpp::Context &ctx) { getExchangeUSDData(ctx); });
+                balancePromise = restClient->ProcessWithPromise(
+                        [this](restc_cpp::Context &ctx) { getBalanceData(ctx); });
+                algoPromise = restClient->ProcessWithPromise([this](restc_cpp::Context &ctx) { getAlgoData(ctx); });
+                restClient->CloseWhenReady(false);
+            }
         }
     }
 }
@@ -203,7 +215,7 @@ void SceneManager::setSettings(const Settings& newSettings) {
 
     settings = newSettings;
     settings.saveToFile();
-    requestTime = sf::seconds(60.f);
+    requestTime = sf::seconds(requestTimeWait);
 }
 
 const sf::Font& SceneManager::getFont() const {
@@ -231,11 +243,23 @@ double SceneManager::getBTCBalance() const {
 }
 
 double SceneManager::BTCtoUSD(double btc) const {
+    if (USDBTC == 0.0) {
+        return btc * 11000.0;
+    }
+
     return btc * USDBTC;
 }
 
 double SceneManager::BTCtoARS(double btc) const {
+    if (ARSBTC == 0.0) {
+        return btc * 2000000.0;
+    }
+
     return btc * ARSBTC;
+}
+
+const AlgoData& SceneManager::getAlgoData() const {
+    return algoData;
 }
 
 void SceneManager::updateSize() {
@@ -294,10 +318,15 @@ void SceneManager::updateActiveFrom() {
 }
 
 void SceneManager::createWindow() {
+    sf::ContextSettings settings;
+    settings.antialiasingLevel = 8;
+
+    sf::String title = "MinerDisplay - 0.1.0";
+
     if (fullscreen) {
-        window.create(sf::VideoMode::getDesktopMode(), "NiceHashNexus", sf::Style::None);
+        window.create(sf::VideoMode::getDesktopMode(), title, sf::Style::None, settings);
     } else {
-        window.create({windowSize.x, windowSize.y, 32}, "NiceHashNexus", sf::Style::Default);
+        window.create({windowSize.x, windowSize.y, 32}, title, sf::Style::Default, settings);
     }
 
     updateSize();
@@ -349,7 +378,9 @@ void SceneManager::getRigData(restc_cpp::Context& ctx) {
 }
 
 void SceneManager::getExchangeARSData(restc_cpp::Context& ctx) {
+#ifndef NDEBUG
     return;
+#endif
     ExchangeJSON exchangeJSON;
     std::unique_ptr<restc_cpp::Reply> reply;
 
@@ -372,7 +403,9 @@ void SceneManager::getExchangeARSData(restc_cpp::Context& ctx) {
 }
 
 void SceneManager::getExchangeUSDData(restc_cpp::Context& ctx) {
+#ifndef NDEBUG
     return;
+#endif
     ExchangeJSON exchangeJSON;
     std::unique_ptr<restc_cpp::Reply> reply;
 
@@ -478,13 +511,6 @@ void SceneManager::getAlgoData(restc_cpp::Context& ctx) {
     for (const auto& data : algoJSON.data) {
         AlgoData::AlgoDataPoint dataPoint {static_cast<unsigned long long>(data[timeIndex]), data[profitabilityIndex]};
         algoData.dataPoints.push_back(dataPoint);
-        if (dataPoint.time < algoData.minTime) {
-            algoData.minTime = dataPoint.time;
-        } else if (dataPoint.time > algoData.maxTime) {
-            algoData.maxTime = dataPoint.time;
-        } else if (dataPoint.profitability > algoData.maxProfitability) {
-            algoData.maxProfitability = dataPoint.profitability;
-        }
     }
 
     int k = 1;
